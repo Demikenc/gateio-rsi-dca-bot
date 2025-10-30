@@ -1,0 +1,40 @@
+{
+  "poll_seconds": 25,
+  "lookback_candles": 120,
+  "default_period_rsi": 14,
+  "dry_run_default": false,
+  "loop_forever": true,
+  "quote_currency": "USDT",
+  "auto_rebuy": true,
+  "daily_summary_hour": 21,
+
+  "symbols": [
+    {
+      "symbol": "PEPE/USDT",
+      "timeframe": "5m",
+      "entry_rsi_lt": 28,
+      "usd_per_entry": 6.5,
+      "dca_steps": 12,
+      "dca_step_pct": 0.9,
+      "max_position_usd": 60,
+      "take_profits": [0.018, 0.032, 0.045],
+      "tp_allocation": [0.5, 0.35, 0.15],
+      "stop_close_below": 0.00000095,
+      "min_notional_usd": 5.0
+    },
+
+    {
+      "symbol": "JTO/USDT",
+      "timeframe": "5m",
+      "entry_rsi_lt": 22,
+      "usd_per_entry": 0.0,
+      "dca_steps": 0,
+      "dca_step_pct": 1.0,
+      "max_position_usd": 500,
+      "take_profits": [0.0065, 0.012, 0.019],
+      "tp_allocation": [0.55, 0.30, 0.15],
+      "stop_close_below": 1.22,
+      "min_notional_usd": 6.0
+    }
+  ]
+}
