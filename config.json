@@ -1,42 +1,77 @@
 {
-  "poll_seconds": 25,
-  "lookback_candles": 1200,
+  "lookback_candles": 2000,
   "default_period_rsi": 14,
-  "dry_run_default": false,
-  "loop_forever": true,
-  "quote_currency": "USDT",
-  "auto_rebuy": true,
-  "daily_summary_hour": 21,
+  "poll_seconds": 45,
+
+  "smart_entry_enabled": true,
+  "volume_spike_multiplier": 1.5,
+  "structure_lookback": 12,
 
   "symbols": [
     {
       "symbol": "PEPE/USDT",
       "timeframe": "15m",
       "entry_rsi_lt": 28,
-      "usd_per_entry": 6.5,
-      "dca_steps": 12,
-      "dca_step_pct": 0.9,
-      "max_position_usd": 60,
-      "take_profits": [0.018, 0.032, 0.045],
-      "tp_allocation": [0.5, 0.35, 0.15],
-      "stop_close_below": 0.00000095,
-      "min_notional_usd": 5.0
+      "usd_per_entry": 3,
+      "dca_steps": 4,
+      "dca_step_pct": 0.8,
+      "max_position_usd": 40,
+      "take_profits": [0.8, 1.5, 2.5],
+      "tp_allocation": [0.34, 0.33, 0.33],
+      "stop_close_below": 0,
+      "stop_loss_enabled": true
     },
-
     {
       "symbol": "JTO/USDT",
       "timeframe": "15m",
-      "entry_rsi_lt": 22,
-      "usd_per_entry": 0.0,
-      "dca_steps": 0,
-      "dca_step_pct": 1.0,
-      "max_position_usd": 500,
-      "take_profits": [0.0065, 0.012, 0.019],
-      "tp_allocation": [0.55, 0.30, 0.15],
-      "stop_close_below": 1.22,
-      "min_notional_usd": 6.0,
+      "entry_rsi_lt": 24,
+      "usd_per_entry": 4,
+      "dca_steps": 5,
+      "dca_step_pct": 1.2,
+      "max_position_usd": 45,
+      "take_profits": [1.0, 2.2, 3.5],
+      "tp_allocation": [0.34, 0.33, 0.33],
+      "stop_close_below": 0,
       "stop_loss_enabled": false
-
+    },
+    {
+      "symbol": "BONK/USDT",
+      "timeframe": "15m",
+      "entry_rsi_lt": 29,
+      "usd_per_entry": 3,
+      "dca_steps": 4,
+      "dca_step_pct": 1.0,
+      "max_position_usd": 35,
+      "take_profits": [0.7, 1.3, 2.0],
+      "tp_allocation": [0.34, 0.33, 0.33],
+      "stop_close_below": 0,
+      "stop_loss_enabled": true
+    },
+    {
+      "symbol": "DOGE/USDT",
+      "timeframe": "15m",
+      "entry_rsi_lt": 27,
+      "usd_per_entry": 5,
+      "dca_steps": 4,
+      "dca_step_pct": 1.0,
+      "max_position_usd": 60,
+      "take_profits": [0.6, 1.2, 2.0],
+      "tp_allocation": [0.34, 0.33, 0.33],
+      "stop_close_below": 0,
+      "stop_loss_enabled": true
+    },
+    {
+      "symbol": "WIF/USDT",
+      "timeframe": "15m",
+      "entry_rsi_lt": 25,
+      "usd_per_entry": 4,
+      "dca_steps": 5,
+      "dca_step_pct": 1.0,
+      "max_position_usd": 50,
+      "take_profits": [1.0, 2.0, 3.0],
+      "tp_allocation": [0.34, 0.33, 0.33],
+      "stop_close_below": 0,
+      "stop_loss_enabled": true
     }
   ]
 }
