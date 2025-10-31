@@ -223,60 +223,8 @@ def place_market_sell(exchange, symbol: str, amount: float, dry_run: bool):
 # =========================
 # Reconcile fills → avg/size & PnL
 # =========================
-def reconcile_fills(exchange, symbol: str, st: SymbolState, quote_ccy: str, dry_run: bool):
-    if dry_run:
-        return
-    since = int((time.time() - 86400) * 1000)
-    try:
-        orders = exchange.fetch_orders(symbol, since=since, limit=100)
-    except Exception as e:
-        print(f"[{symbol}] reconcile error: {e}")
-        return
-
-    pl = load_pl()
-    changed = False
-
-    for o in orders:
-        if o.get("status") != "closed":
-            continue
-        cid = o.get("clientOrderId") or ""
-        side = o.get("side")
-        filled = float(o.get("filled") or 0)
-        price = float(o.get("average") or o.get("price") or 0)
-        if filled <= 0 or price <= 0:
-            continue
-
-        if side == "buy" and cid in st.open_buy_orders:
-            cost = filled * price
-            new_base = st.total_base + filled
-            if new_base > 0:
-                st.avg_entry = ((st.avg_entry * st.total_base) + cost) / new_base
-            st.total_base = new_base
-            st.open_buy_orders.remove(cid)
-            changed = True
-            send_telegram(f"✅ BUY FILLED\n{symbol}\n{filled} @ {price}")
-
-        if side == "sell" and cid in st.open_sell_orders:
-            proceeds = filled * price
-            cost_basis = filled * st.avg_entry
-            realized = proceeds - cost_basis
-            st.total_base = max(0.0, st.total_base - filled)
-            st.open_sell_orders.remove(cid)
-            changed = True
-            pl.setdefault("trades", []).append({
-                "ts": int(time.time()),
-                "symbol": symbol,
-                "side": "sell",
-                "filled": filled,
-                "price": price,
-                "realized_usd": realized
-            })
-            save_pl(pl)
-            send_telegram(f"🎉 TAKE PROFIT FILLED\n{symbol}\nSold {filled} @ {price}\nPnL: {realized:.4f} {quote_ccy}")
-
-    if changed:
-        save_state(symbol, st)
-
+open_orders = exchange.fetch_open_orders(symbol)
+closed_orders = exchange.fetch_closed_orders(symbol)
 
 # =========================
 # Daily summary
