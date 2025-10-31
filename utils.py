@@ -42,3 +42,21 @@ def pct(a: float, b: float) -> float:
     if b == 0:
         return 0.0
     return (a - b) / b * 100.0
+def macd(series, fast=12, slow=26, signal=9):
+    fast_ema = ema(series, fast)
+    slow_ema = ema(series, slow)
+    macd_line = [f - s for f, s in zip(fast_ema, slow_ema)]
+    signal_line = ema(macd_line, signal)
+    hist = [m - s for m, s in zip(macd_line, signal_line)]
+    return macd_line, signal_line, hist
+
+def ema(values, period):
+    alpha = 2 / (period + 1)
+    ema_vals = []
+    for i, v in enumerate(values):
+        if i == 0:
+            ema_vals.append(v)
+        else:
+            ema_vals.append((v - ema_vals[-1]) * alpha + ema_vals[-1])
+    return ema_vals
+
