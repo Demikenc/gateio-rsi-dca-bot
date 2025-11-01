@@ -1,0 +1,9 @@
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+
+[tool.isort]
+profile = "black"
+
+[tool.pylint]
+max-line-length = 100

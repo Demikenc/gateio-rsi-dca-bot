@@ -1,17 +1,18 @@
-import os
-import json
-import time
 import argparse
+import json
+import os
+import time
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 from datetime import datetime
-import pytz
+from typing import Dict, List, Optional
 
 import ccxt
+import pytz
 import requests
 from dotenv import load_dotenv
 
-from utils import rsi, now_ms, sleep_s, client_order_id
+from utils import client_order_id, now_ms, rsi, sleep_s
+
 
 def send_telegram(msg: str):
     token = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -19,13 +20,17 @@ def send_telegram(msg: str):
     if not token or not chat_id:
         return
     try:
-        requests.get(f"https://api.telegram.org/bot{token}/sendMessage",
-                     params={"chat_id": chat_id, "text": msg})
+        requests.get(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            params={"chat_id": chat_id, "text": msg},
+        )
     except Exception:
         pass
 
+
 STATE_DIR = "STATE"
 P_L_FILE = os.path.join(STATE_DIR, "profit_log.json")
+
 
 @dataclass
 class SymbolState:
@@ -36,13 +41,16 @@ class SymbolState:
     anchor_price: Optional[float] = None
     last_signal_ts: int = 0
 
+
 def ensure_state_dir():
     if not os.path.exists(STATE_DIR):
         os.makedirs(STATE_DIR, exist_ok=True)
 
+
 def state_path(sym: str) -> str:
     safe = sym.replace("/", "_")
     return os.path.join(STATE_DIR, f"{safe}.json")
+
 
 def load_state(sym: str) -> SymbolState:
     p = state_path(sym)
@@ -52,9 +60,11 @@ def load_state(sym: str) -> SymbolState:
         data = json.load(f)
     return SymbolState(**data)
 
+
 def save_state(sym: str, st: SymbolState):
     with open(state_path(sym), "w") as f:
         json.dump(st.__dict__, f, indent=2)
+
 
 def load_pl():
     if not os.path.exists(P_L_FILE):
@@ -62,33 +72,40 @@ def load_pl():
     with open(P_L_FILE, "r") as f:
         return json.load(f)
 
+
 def save_pl(pl):
     with open(P_L_FILE, "w") as f:
         json.dump(pl, f, indent=2)
+
 
 def make_exchange(dry_run: bool):
     load_dotenv()
     api_key = os.getenv("GATEIO_API_KEY", "")
     api_secret = os.getenv("GATEIO_API_SECRET", "")
-    exchange = ccxt.gateio({
-        "apiKey": api_key,
-        "secret": api_secret,
-        "enableRateLimit": True,
-        "options": {"defaultType": "spot"},
-    })
+    exchange = ccxt.gateio(
+        {
+            "apiKey": api_key,
+            "secret": api_secret,
+            "enableRateLimit": True,
+            "options": {"defaultType": "spot"},
+        }
+    )
     if not dry_run and (not api_key or not api_secret):
         raise RuntimeError("Live mode requires GATEIO_API_KEY and GATEIO_API_SECRET in .env")
     exchange.load_markets()
     return exchange
+
 
 def fetch_rsi(exchange, symbol: str, timeframe: str, lookback: int, period: int) -> float:
     ohlcv = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=period + 50)
     closes = [c[4] for c in ohlcv]
     return rsi(closes, period)
 
+
 def get_price(exchange, symbol: str) -> float:
     ticker = exchange.fetch_ticker(symbol)
     return ticker["last"] or ticker["close"]
+
 
 def place_limit_buy(exchange, symbol: str, amount: float, price: float, dry_run: bool):
     cid = client_order_id("buy")
@@ -103,6 +120,7 @@ def place_limit_buy(exchange, symbol: str, amount: float, price: float, dry_run:
         print(f"[ERR] BUY: {e}")
         return None
 
+
 def place_limit_sell(exchange, symbol: str, amount: float, price: float, dry_run: bool):
     cid = client_order_id("sell")
     if dry_run:
@@ -115,6 +133,7 @@ def place_limit_sell(exchange, symbol: str, amount: float, price: float, dry_run
     except Exception as e:
         print(f"[ERR] SELL: {e}")
         return None
+
 
 def place_market_sell(exchange, symbol: str, amount: float, dry_run: bool):
     cid = client_order_id("mksell")
@@ -129,9 +148,11 @@ def place_market_sell(exchange, symbol: str, amount: float, dry_run: bool):
         print(f"[ERR] MARKET SELL: {e}")
         return None
 
+
 def amount_from_usd(exchange, symbol: str, usd: float, price: float) -> float:
     amt = usd / price
     return float(exchange.amount_to_precision(symbol, amt))
+
 
 def reconcile_fills(exchange, symbol: str, st: SymbolState, quote_ccy: str, dry_run: bool):
     """
@@ -159,17 +180,17 @@ def reconcile_fills(exchange, symbol: str, st: SymbolState, quote_ccy: str, dry_
 
         if filled <= 0 or price <= 0:
             continue
-
         # === BUY FILLED ===
         if side == "buy" and cid in st.open_buy_orders:
             cost = filled * price
             new_total = st.total_base + filled
-            st.avg_entry = ((st.avg_entry * st.total_base) + cost) / new_total if new_total > 0 else 0
+            st.avg_entry = (
+                ((st.avg_entry * st.total_base) + cost) / new_total if new_total > 0 else 0
+            )
             st.total_base = new_total
             st.open_buy_orders.remove(cid)
             changed = True
-
-            send_telegram(f"✅ BUY FILLED\n{symbol}\n{filled} @ {price}")
+            send_telegram(f"✅ BUY FILLED\n{symbol}\nFilled: {filled}\n@ {price}")
 
         # === TAKE PROFIT FILLED ===
         if side == "sell" and cid in st.open_sell_orders:
@@ -180,20 +201,24 @@ def reconcile_fills(exchange, symbol: str, st: SymbolState, quote_ccy: str, dry_
             st.open_sell_orders.remove(cid)
             changed = True
 
-            pl.setdefault("trades", []).append({
-                "ts": int(time.time()),
-                "symbol": symbol,
-                "side": "sell",
-                "filled": filled,
-                "price": price,
-                "realized_usd": realized
-            })
+            pl.setdefault("trades", []).append(
+                {
+                    "ts": int(time.time()),
+                    "symbol": symbol,
+                    "side": "tp_exit",
+                    "filled": filled,
+                    "price": price,
+                    "realized_usd": realized,
+                }
+            )
             save_pl(pl)
-
-            send_telegram(f"🎉 TAKE PROFIT FILLED\n{symbol}\n{filled} @ {price}\nPnL: {realized:.2f} {quote_ccy}")
+            send_telegram(
+                f"🎉 TAKE PROFIT FILLED\n{symbol}\nSold: {filled}\n@ {price}\nPnL: {realized:.2f} USDT"
+            )
 
     if changed:
         save_state(symbol, st)
+
 
 def maybe_send_daily_summary(local_tz_str="Africa/Lagos", summary_hour=21):
     pl = load_pl()
@@ -220,7 +245,16 @@ def maybe_send_daily_summary(local_tz_str="Africa/Lagos", summary_hour=21):
     pl["last_daily_summary_date"] = today_key
     save_pl(pl)
 
-def run_symbol(exchange, sym_cfg: Dict, dry_run: bool, lookback: int, period_rsi: int, quote_ccy: str, auto_rebuy: bool):
+
+def run_symbol(
+    exchange,
+    sym_cfg: Dict,
+    dry_run: bool,
+    lookback: int,
+    period_rsi: int,
+    quote_ccy: str,
+    auto_rebuy: bool,
+):
     symbol = sym_cfg["symbol"]
     timeframe = sym_cfg["timeframe"]
     entry_rsi_lt = float(sym_cfg["entry_rsi_lt"])
@@ -246,14 +280,16 @@ def run_symbol(exchange, sym_cfg: Dict, dry_run: bool, lookback: int, period_rsi
         if cid:
             pl = load_pl()
             realized = (last - st.avg_entry) * st.total_base
-            pl.setdefault("trades", []).append({
-                "ts": int(time.time()),
-                "symbol": symbol,
-                "side": "stop_exit",
-                "filled": st.total_base,
-                "price": last,
-                "realized_usd": realized
-            })
+            pl.setdefault("trades", []).append(
+                {
+                    "ts": int(time.time()),
+                    "symbol": symbol,
+                    "side": "stop_exit",
+                    "filled": st.total_base,
+                    "price": last,
+                    "realized_usd": realized,
+                }
+            )
             save_pl(pl)
             st = SymbolState()
             save_state(symbol, st)
@@ -269,7 +305,9 @@ def run_symbol(exchange, sym_cfg: Dict, dry_run: bool, lookback: int, period_rsi
             cid = place_limit_sell(exchange, symbol, amount, target_price, dry_run)
             if cid:
                 st.open_sell_orders.append(cid)
-                send_telegram(f"📈 TAKE PROFIT SET\n{symbol}\nSell @ {target_price:.8f}\nAmount: {amount}")
+                send_telegram(
+                    f"📈 TAKE PROFIT SET\n{symbol}\nSell @ {target_price:.8f}\nAmount: {amount}"
+                )
         save_state(symbol, st)
 
     if _rsi < entry_rsi_lt:
@@ -307,6 +345,7 @@ def run_symbol(exchange, sym_cfg: Dict, dry_run: bool, lookback: int, period_rsi
             send_telegram(f"🔁 AUTO-REBUY ARMED: {symbol}\nAnchor @ {st.anchor_price:.8f}")
             save_state(symbol, st)
 
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", default="config.json")
@@ -343,6 +382,7 @@ def main():
         except Exception as e:
             print(f"[SUMMARY] error: {e}")
         time.sleep(poll)
+
 
 if __name__ == "__main__":
     main()

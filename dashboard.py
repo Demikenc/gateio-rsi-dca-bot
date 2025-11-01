@@ -1,11 +1,14 @@
+import json
+import os
+import time
+from datetime import datetime, timezone
+from typing import Any, Dict, List
+
+import ccxt
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-import os, json, time
-from datetime import datetime, timezone
-from typing import Dict, Any, List
-import ccxt
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 STATE_DIR = os.path.join(APP_DIR, "STATE")
@@ -16,12 +19,17 @@ app = FastAPI(title="Trading Dashboard")
 templates = Jinja2Templates(directory=os.path.join(APP_DIR, "templates"))
 app.mount("/static", StaticFiles(directory=os.path.join(APP_DIR, "static")), name="static")
 
+
 def load_config() -> Dict[str, Any]:
     try:
         with open(CONFIG_PATH, "r") as f:
             return json.load(f)
     except Exception:
-        return {"quote_currency":"USDT","symbols":[{"symbol":"PEPE/USDT"},{"symbol":"JTO/USDT"}]}
+        return {
+            "quote_currency": "USDT",
+            "symbols": [{"symbol": "PEPE/USDT"}, {"symbol": "JTO/USDT"}],
+        }
+
 
 def load_state_for(symbol: str) -> Dict[str, Any]:
     safe = symbol.replace("/", "_")
@@ -34,6 +42,7 @@ def load_state_for(symbol: str) -> Dict[str, Any]:
     except Exception:
         return {"avg_entry": 0.0, "total_base": 0.0}
 
+
 def load_profit_log() -> Dict[str, Any]:
     if not os.path.exists(PL_PATH):
         return {"trades": []}
@@ -43,16 +52,19 @@ def load_profit_log() -> Dict[str, Any]:
     except Exception:
         return {"trades": []}
 
+
 def make_public_exchange():
     ex = ccxt.gateio({"enableRateLimit": True, "options": {"defaultType": "spot"}})
     ex.timeout = 20000
     try:
-        ex.load_markets(params={"type":"spot"})
+        ex.load_markets(params={"type": "spot"})
     except Exception:
         pass
     return ex
 
+
 EXCHANGE = make_public_exchange()
+
 
 def get_last_price(symbol: str) -> float:
     try:
@@ -60,6 +72,7 @@ def get_last_price(symbol: str) -> float:
         return float(t.get("last") or t.get("close") or 0.0)
     except Exception:
         return 0.0
+
 
 def realized_today_usd(pl: Dict[str, Any]) -> float:
     now = datetime.now(timezone.utc)
@@ -73,11 +86,13 @@ def realized_today_usd(pl: Dict[str, Any]) -> float:
             continue
     return total
 
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     cfg = load_config()
     symbols = [s["symbol"] for s in cfg.get("symbols", [])]
     return templates.TemplateResponse("index.html", {"request": request, "symbols": symbols})
+
 
 @app.get("/api/status")
 async def status():
@@ -94,13 +109,21 @@ async def status():
         if base > 0 and avg > 0 and price > 0:
             unrealized = (price - avg) * base
             unrealized_pct = ((price / avg) - 1.0) * 100.0
-        out.append({
-            "symbol": sym,
-            "price": price,
-            "avg_entry": avg,
-            "position": base,
-            "unrealized_usd": unrealized,
-            "unrealized_pct": unrealized_pct
-        })
+        out.append(
+            {
+                "symbol": sym,
+                "price": price,
+                "avg_entry": avg,
+                "position": base,
+                "unrealized_usd": unrealized,
+                "unrealized_pct": unrealized_pct,
+            }
+        )
     pl = load_profit_log()
-    return JSONResponse({"symbols": out, "realized_today_usd": realized_today_usd(pl), "server_time": int(time.time())})
+    return JSONResponse(
+        {
+            "symbols": out,
+            "realized_today_usd": realized_today_usd(pl),
+            "server_time": int(time.time()),
+        }
+    )
